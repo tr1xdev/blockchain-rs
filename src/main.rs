@@ -1,57 +1,11 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::{Arc, Mutex};
 
-#[derive(Clone, Serialize)]
-struct Block {
-    index: u64,
-    data: String,
-    prev_hash: String,
-    hash: String,
-}
+mod core;
 
-struct Chain {
-    blocks: Vec<Block>,
-}
-
-impl Chain {
-    fn new() -> Self {
-        Self {
-            blocks: vec![Self::genesis_block()],
-        }
-    }
-
-    fn genesis_block() -> Block {
-        Block {
-            index: 0,
-            data: "genesis".to_string(),
-            prev_hash: "0".to_string(),
-            hash: "genesis".to_string(),
-        }
-    }
-
-    fn add_block(&mut self, data: String) -> Result<(), &'static str> {
-        if data.is_empty() {
-            return Err("data cannot be empty");
-        }
-
-        let last = self.blocks.last().unwrap();
-        let new_index = last.index + 1;
-        let hash = format!("{}:{}:{}", new_index, data, last.hash);
-
-        let new_block = Block {
-            index: new_index,
-            data,
-            prev_hash: last.hash.clone(),
-            hash,
-        };
-
-        let idx = new_block.index;
-        self.blocks.push(new_block);
-        println!("✅ Block #{} added", idx);
-        Ok(())
-    }
-}
+use core::block::Block;
+use core::chain::Chain;
 
 type AppState = Arc<Mutex<Chain>>;
 
@@ -91,8 +45,8 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
     println!("🚀 Server running on http://localhost:8000");
-    println!("   GET  /blocks  – get all blocks");
-    println!("   POST /blocks  – add a block (JSON: {{ \"data\": \"...\" }})");
+    println!("   GET  /blocks - get all blocks");
+    println!("   POST /blocks - add a block (JSON: {{ \"data\": \"...\" }})");
 
     axum::serve(listener, app).await.unwrap();
 }
