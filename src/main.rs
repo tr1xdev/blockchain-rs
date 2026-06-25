@@ -1,38 +1,15 @@
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
-use serde::Deserialize;
+use axum::{routing::get, Router};
 use std::sync::{Arc, Mutex};
 
 mod core;
-
-use core::block::Block;
+mod routes;
 use core::chain::Chain;
 
+use routes::root::root;
+
+use crate::routes::{add_blocks::post_block, get_blocks::get_blocks};
+
 type AppState = Arc<Mutex<Chain>>;
-
-async fn root() -> &'static str {
-    "Hello, World!"
-}
-
-async fn get_blocks(State(state): State<AppState>) -> Json<Vec<Block>> {
-    let chain = state.lock().unwrap();
-    Json(chain.blocks.clone())
-}
-
-#[derive(Deserialize)]
-struct AddBlockRequest {
-    data: String,
-}
-
-async fn post_block(
-    State(state): State<AppState>,
-    Json(payload): Json<AddBlockRequest>,
-) -> impl IntoResponse {
-    let mut chain = state.lock().unwrap();
-    match chain.add_block(payload.data) {
-        Ok(()) => (StatusCode::CREATED, "Block added"),
-        Err(e) => (StatusCode::BAD_REQUEST, e),
-    }
-}
 
 #[tokio::main]
 async fn main() {
