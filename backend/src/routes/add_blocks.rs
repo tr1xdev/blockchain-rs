@@ -2,7 +2,7 @@ use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::AppState;
+use crate::SharedState;
 
 #[derive(Deserialize)]
 pub struct AddBlockRequest {
@@ -10,7 +10,7 @@ pub struct AddBlockRequest {
 }
 
 pub async fn post_block(
-    State(state): State<AppState>,
+    State(state): State<SharedState>,
     Json(payload): Json<AddBlockRequest>,
 ) -> impl IntoResponse {
     // ensure that it's not an empty str
@@ -22,15 +22,22 @@ pub async fn post_block(
             .into_response();
     }
 
-    let mut chain = state.lock().unwrap();
+    let mut chain = state.chain.lock().unwrap();
 
     match chain.add_block(payload.data) {
-        Ok(()) => (
-            StatusCode::CREATED,
-            Json(json!({ "message": "Block added" })),
-        )
-            .into_response(),
+        Ok(()) => {
+            let blocks_tree = state.db.open_tree("blocks").unwrap();
 
+            if let Some(new_block) = chain.blocks.last() {
+                let encoded_block = serde_json::to_vec(new_block).unwrap();
+                blocks_tree
+                    .insert(new_block.index.to_string(), encoded_block)
+                    .unwrap();
+                blocks_tree.flush().unwrap();
+            }
+
+            (StatusCode::CREATED, Json(json!({"message":"block added"}))).into_response()
+        }
         Err(e) => (
             StatusCode::BAD_REQUEST,
             Json(json!({ "error": e.to_string() })),
