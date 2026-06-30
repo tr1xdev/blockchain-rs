@@ -1,9 +1,9 @@
 <script lang="ts">
     interface Block {
         index: number;
-        data: String;
-        prev_hash: String;
-        hash: String;
+        data: string;
+        prev_hash: string;
+        hash: string;
     }
 
     let blocks: Block[] = $state([]);
@@ -24,8 +24,10 @@
             }
 
             blocks = await response.json();
-        } catch (e: any) {
-            error = e.message;
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                error = e.message;
+            }
         } finally {
             loading = false;
         }
