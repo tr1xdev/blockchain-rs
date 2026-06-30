@@ -1,5 +1,6 @@
-use axum::{routing::get, Router};
+use axum::{http::Method, routing::get, Router};
 use std::sync::{Arc, Mutex};
+use tower_http::cors::{Any, CorsLayer};
 
 mod core;
 mod routes;
@@ -15,9 +16,15 @@ type AppState = Arc<Mutex<Chain>>;
 async fn main() {
     let state: AppState = Arc::new(Mutex::new(Chain::new()));
 
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers(Any);
+
     let app = Router::new()
         .route("/", get(root))
         .route("/blocks", get(get_blocks).post(post_block))
+        .layer(cors)
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
