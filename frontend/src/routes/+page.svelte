@@ -41,8 +41,10 @@
                 body: JSON.stringify({ data: newData }),
             });
 
+            const result = await response.json();
+
             if (!response.ok) {
-                throw new Error("failed to add block");
+                throw new Error(result.error || "Failed to add block");
             }
 
             newData = "";
@@ -57,23 +59,35 @@
     });
 </script>
 
-<h1>Page</h1>
+<div class="p-5">
+    <h1>Page</h1>
 
-<div>
-    <input type="text" bind:value={newData} placeholder="Enter block data" />
-    <button onclick={postBlock}>Add Block</button>
+    <div>
+        <input
+            type="text"
+            bind:value={newData}
+            placeholder="Enter block data"
+            class="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+            class="p-2 bg-sky-300 h-10 w-24 rounded-sm disabled:opacity-50"
+            onclick={postBlock}
+            disabled={newData.trim().length === 0}
+        >
+            Add Block
+        </button>
+    </div>
+
+    <h3 class="underline">Blocks</h3>
+    {#if loading}
+        <p>Loading...</p>
+    {:else if error}
+        <p>Error: {error}</p>
+    {:else}
+        <ul>
+            {#each blocks as block}
+                <li>{block.data} (Hash: {block.hash})</li>
+            {/each}
+        </ul>
+    {/if}
 </div>
-
-<h3>Blocks</h3>
-
-{#if loading}
-    <p>Loading...</p>
-{:else if error}
-    <p>Error: {error}</p>
-{:else}
-    <ul>
-        {#each blocks as block}
-            <li>{block.data} (Hash: {block.hash})</li>
-        {/each}
-    </ul>
-{/if}
