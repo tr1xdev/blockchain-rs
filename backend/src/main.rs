@@ -4,17 +4,37 @@ use tower_http::cors::{Any, CorsLayer};
 
 mod core;
 mod routes;
+use crate::{
+    core::block::Block,
+    routes::{add_blocks::post_block, get_blocks::get_blocks},
+};
 use core::chain::Chain;
-
 use routes::root::root;
 
-use crate::routes::{add_blocks::post_block, get_blocks::get_blocks};
+pub struct AppState {
+    pub chain: Mutex<Chain>,
+    pub db: sled::Db,
+}
 
-type AppState = Arc<Mutex<Chain>>;
+type SharedState = Arc<AppState>;
 
 #[tokio::main]
-async fn main() {
-    let state: AppState = Arc::new(Mutex::new(Chain::new()));
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let db = sled::open("blockchain.db")?;
+    let blocks_tree = db.open_tree("blocks")?;
+
+    let mut chain = Chain::new();
+
+    for item in blocks_tree.iter() {
+        let (_, block_bytes) = item?;
+        let block: Block = serde_json::from_slice(&block_bytes)?;
+        chain.blocks.push(block);
+    }
+
+    let state: SharedState = Arc::new(AppState {
+        chain: Mutex::new(chain),
+        db,
+    });
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -29,8 +49,8 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
     println!("🚀 Server running on http://localhost:8000");
-    println!("   GET  /blocks - get all blocks");
-    println!("   POST /blocks - add a block (JSON: {{ \"data\": \"...\" }})");
 
     axum::serve(listener, app).await.unwrap();
+
+    Ok(())
 }
